@@ -114,6 +114,114 @@ export const GET: APIRoute = async ({ request, locals, url }) => {
   }
 };
 
+export const POST: APIRoute = async ({ request, locals }) => {
+  try {
+    // Verify admin session
+    const isAuthenticated = await verifySession(request, locals);
+    if (!isAuthenticated) {
+      return new Response(JSON.stringify({
+        success: false,
+        message: 'Unauthorized'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const kv = locals.runtime?.env?.NEWSLETTER_KV;
+    if (!kv) {
+      return new Response(JSON.stringify({
+        success: false,
+        message: 'Service unavailable'
+      }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const formData = await request.formData();
+    const csvData = formData.get('csv')?.toString();
+
+    if (!csvData) {
+      return new Response(JSON.stringify({
+        success: false,
+        message: 'CSV data is required'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Parse CSV and validate emails
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const lines = csvData.split('\n').map(line => line.trim()).filter(line => line);
+    
+    let added = 0;
+    let skipped = 0;
+    let invalid = 0;
+    const errors: string[] = [];
+
+    for (const line of lines) {
+      const email = line.toLowerCase().trim();
+      
+      // Validate email format
+      if (!emailRegex.test(email)) {
+        invalid++;
+        errors.push(`Invalid email format: ${email}`);
+        continue;
+      }
+
+      // Check if email already exists
+      const existingSubscriber = await kv.get(`subscriber:${email}`, 'json') as Subscriber | null;
+      
+      if (existingSubscriber) {
+        skipped++;
+        continue;
+      }
+
+      // Create new subscriber
+      const subscriber: Subscriber = {
+        email,
+        subscribedAt: new Date().toISOString(),
+        status: 'active',
+        userAgent: request.headers.get('user-agent') || undefined,
+        ip: request.headers.get('cf-connecting-ip') || undefined,
+      };
+
+      await kv.put(`subscriber:${email}`, JSON.stringify(subscriber));
+      added++;
+    }
+
+    // Update subscriber count
+    const currentCount = await kv.get('subscriber_count') || '0';
+    const newCount = parseInt(currentCount) + added;
+    await kv.put('subscriber_count', newCount.toString());
+
+    return new Response(JSON.stringify({
+      success: true,
+      results: {
+        added,
+        skipped,
+        invalid,
+        errors: errors.slice(0, 10) // Limit errors to first 10
+      }
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Bulk upload error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      message: 'Bulk upload failed'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+};
+
 export const DELETE: APIRoute = async ({ request, locals }) => {
   try {
     // Verify admin session

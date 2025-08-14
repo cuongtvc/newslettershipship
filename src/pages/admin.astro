@@ -44,6 +44,47 @@ if (cookieHeader) {
           </div>
         </div>
 
+        <div class="upload-card">
+          <h2>Bulk Upload Subscribers</h2>
+          <div class="upload-section">
+            <div class="file-upload">
+              <input type="file" id="csv-file" accept=".csv" />
+              <label for="csv-file" class="upload-label">
+                <span class="upload-text">Choose CSV file or drag & drop</span>
+                <span class="upload-hint">CSV should contain one email per line</span>
+              </label>
+            </div>
+            <button id="upload-btn" class="btn btn-primary" disabled>Upload Subscribers</button>
+          </div>
+          <div id="upload-progress" class="hidden">
+            <div class="progress-bar">
+              <div id="progress-fill" class="progress-fill"></div>
+            </div>
+            <div id="upload-status">Processing...</div>
+          </div>
+          <div id="upload-results" class="hidden">
+            <h3>Upload Results</h3>
+            <div class="results-summary">
+              <div class="result-item">
+                <span class="result-number" id="added-count">0</span>
+                <span class="result-label">New subscribers added</span>
+              </div>
+              <div class="result-item">
+                <span class="result-number" id="skipped-count">0</span>
+                <span class="result-label">Existing emails skipped</span>
+              </div>
+              <div class="result-item">
+                <span class="result-number" id="invalid-count">0</span>
+                <span class="result-label">Invalid emails</span>
+              </div>
+            </div>
+            <div id="error-list" class="error-list hidden">
+              <h4>Errors:</h4>
+              <ul id="error-items"></ul>
+            </div>
+          </div>
+        </div>
+
         <div class="subscribers-card">
           <h2>All Subscribers</h2>
           <div id="loading">Loading subscribers...</div>
@@ -95,7 +136,7 @@ if (cookieHeader) {
     margin: 0;
   }
 
-  .stats-card, .subscribers-card {
+  .stats-card, .subscribers-card, .upload-card {
     background: white;
     border-radius: 8px;
     padding: 2rem;
@@ -103,7 +144,7 @@ if (cookieHeader) {
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
   }
 
-  .stats-card h2, .subscribers-card h2 {
+  .stats-card h2, .subscribers-card h2, .upload-card h2 {
     color: #333;
     margin-bottom: 1rem;
     border-bottom: 2px solid #007bff;
@@ -231,6 +272,131 @@ if (cookieHeader) {
     color: #333;
     min-width: 100px;
     text-align: center;
+  }
+
+  .upload-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .file-upload {
+    position: relative;
+    border: 2px dashed #007bff;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+
+  .file-upload:hover {
+    border-color: #0056b3;
+  }
+
+  .file-upload.dragover {
+    border-color: #0056b3;
+    background-color: #f8f9fa;
+  }
+
+  #csv-file {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+  }
+
+  .upload-label {
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .upload-text {
+    font-weight: 600;
+    color: #007bff;
+    font-size: 1.1rem;
+  }
+
+  .upload-hint {
+    color: #666;
+    font-size: 0.9rem;
+  }
+
+  .btn-primary {
+    background: #007bff;
+    color: white;
+    align-self: flex-start;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: #0056b3;
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background-color: #007bff;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  #upload-status {
+    color: #666;
+    margin-bottom: 1rem;
+  }
+
+  .results-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .result-item {
+    text-align: center;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+  }
+
+  .result-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #007bff;
+  }
+
+  .result-label {
+    color: #666;
+    font-size: 0.9rem;
+  }
+
+  .error-list {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    padding: 1rem;
+  }
+
+  .error-list h4 {
+    margin: 0 0 0.5rem 0;
+    color: #721c24;
+  }
+
+  #error-items {
+    margin: 0;
+    padding-left: 1.5rem;
+    color: #721c24;
   }
 
   @media (max-width: 768px) {
@@ -391,7 +557,144 @@ if (cookieHeader) {
     }
   }
 
-  // Make logout function global
+  // Bulk upload functionality
+  let selectedFile: File | null = null;
+
+  function setupFileUpload() {
+    const fileInput = document.getElementById('csv-file') as HTMLInputElement;
+    const uploadBtn = document.getElementById('upload-btn') as HTMLButtonElement;
+    const fileUpload = document.querySelector('.file-upload') as HTMLElement;
+    const uploadText = document.querySelector('.upload-text') as HTMLElement;
+
+    fileInput.addEventListener('change', (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file && file.type === 'text/csv') {
+        selectedFile = file;
+        uploadText.textContent = `Selected: ${file.name}`;
+        uploadBtn.disabled = false;
+      } else {
+        selectedFile = null;
+        uploadText.textContent = 'Choose CSV file or drag & drop';
+        uploadBtn.disabled = true;
+        if (file) {
+          alert('Please select a CSV file');
+        }
+      }
+    });
+
+    // Drag and drop functionality
+    fileUpload.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      fileUpload.classList.add('dragover');
+    });
+
+    fileUpload.addEventListener('dragleave', () => {
+      fileUpload.classList.remove('dragover');
+    });
+
+    fileUpload.addEventListener('drop', (e) => {
+      e.preventDefault();
+      fileUpload.classList.remove('dragover');
+      
+      const file = e.dataTransfer?.files[0];
+      if (file && file.type === 'text/csv') {
+        selectedFile = file;
+        uploadText.textContent = `Selected: ${file.name}`;
+        uploadBtn.disabled = false;
+        fileInput.files = e.dataTransfer.files;
+      } else {
+        alert('Please drop a CSV file');
+      }
+    });
+
+    uploadBtn.addEventListener('click', uploadCSV);
+  }
+
+  async function uploadCSV() {
+    if (!selectedFile) return;
+
+    const progressDiv = document.getElementById('upload-progress')!;
+    const resultsDiv = document.getElementById('upload-results')!;
+    const progressFill = document.getElementById('progress-fill')!;
+    const status = document.getElementById('upload-status')!;
+    const uploadBtn = document.getElementById('upload-btn') as HTMLButtonElement;
+
+    // Show progress
+    progressDiv.classList.remove('hidden');
+    resultsDiv.classList.add('hidden');
+    uploadBtn.disabled = true;
+    progressFill.style.width = '10%';
+    status.textContent = 'Reading file...';
+
+    try {
+      const csvContent = await selectedFile.text();
+      progressFill.style.width = '30%';
+      status.textContent = 'Uploading subscribers...';
+
+      const formData = new FormData();
+      formData.append('csv', csvContent);
+
+      const response = await fetch('/api/subscribers', {
+        method: 'POST',
+        body: formData
+      });
+
+      progressFill.style.width = '100%';
+      status.textContent = 'Processing complete';
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update counts
+        document.getElementById('added-count')!.textContent = data.results.added.toString();
+        document.getElementById('skipped-count')!.textContent = data.results.skipped.toString();
+        document.getElementById('invalid-count')!.textContent = data.results.invalid.toString();
+
+        // Show errors if any
+        const errorList = document.getElementById('error-list')!;
+        const errorItems = document.getElementById('error-items')!;
+        
+        if (data.results.errors && data.results.errors.length > 0) {
+          errorItems.innerHTML = '';
+          data.results.errors.forEach((error: string) => {
+            const li = document.createElement('li');
+            li.textContent = error;
+            errorItems.appendChild(li);
+          });
+          errorList.classList.remove('hidden');
+        } else {
+          errorList.classList.add('hidden');
+        }
+
+        // Show results
+        progressDiv.classList.add('hidden');
+        resultsDiv.classList.remove('hidden');
+
+        // Refresh subscriber list and count
+        loadSubscriberCount();
+        loadSubscribers();
+
+        // Reset form
+        const fileInput = document.getElementById('csv-file') as HTMLInputElement;
+        fileInput.value = '';
+        selectedFile = null;
+        document.querySelector('.upload-text')!.textContent = 'Choose CSV file or drag & drop';
+
+      } else {
+        throw new Error(data.message);
+      }
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      progressDiv.classList.add('hidden');
+      alert('Upload failed. Please try again.');
+    } finally {
+      uploadBtn.disabled = false;
+    }
+  }
+
+  // Make functions global
+  (window as any).uploadCSV = uploadCSV;
   (window as any).logout = logout;
 
   // Add logout button event listener
@@ -421,6 +724,7 @@ if (cookieHeader) {
     if (document.querySelector('.admin-container')) {
       loadSubscriberCount();
       loadSubscribers();
+      setupFileUpload();
     }
   });
 </script>
