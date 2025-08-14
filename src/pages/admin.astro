@@ -41,6 +41,7 @@ if (cookieHeader) {
           <div class="stat">
             <span class="stat-number" id="subscriber-count">-</span>
             <span class="stat-label">Total Subscribers</span>
+            <button id="recount-btn" class="btn btn-outline recount-btn">🔄 Recount</button>
           </div>
         </div>
 
@@ -166,6 +167,22 @@ if (cookieHeader) {
   .stat-label {
     color: #666;
     font-size: 1.1rem;
+  }
+
+  .recount-btn {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .btn-outline {
+    background: transparent;
+    border: 2px solid #007bff;
+    color: #007bff;
+  }
+
+  .btn-outline:hover:not(:disabled) {
+    background: #007bff;
+    color: white;
   }
 
   table {
@@ -429,6 +446,39 @@ if (cookieHeader) {
       }
     } catch (error) {
       console.error('Failed to load subscriber count:', error);
+    }
+  }
+
+  async function recountSubscribers() {
+    const recountBtn = document.getElementById('recount-btn') as HTMLButtonElement;
+    
+    try {
+      recountBtn.disabled = true;
+      recountBtn.textContent = '🔄 Recounting...';
+      
+      const response = await fetch('/api/admin/subscribers?action=recount');
+      const data = await response.json();
+      
+      if (data.success) {
+        document.getElementById('subscriber-count')!.textContent = data.newCount.toString();
+        
+        const message = data.difference === 0 
+          ? 'Count is already accurate' 
+          : `Count updated: ${data.oldCount} → ${data.newCount} (${data.difference > 0 ? '+' : ''}${data.difference})`;
+        
+        alert(message);
+        
+        // Refresh subscribers list to reflect any changes
+        loadSubscribers();
+      } else {
+        alert('Failed to recount: ' + data.message);
+      }
+    } catch (error) {
+      console.error('Recount error:', error);
+      alert('Failed to recount subscribers');
+    } finally {
+      recountBtn.disabled = false;
+      recountBtn.textContent = '🔄 Recount';
     }
   }
 
@@ -696,6 +746,7 @@ if (cookieHeader) {
   // Make functions global
   (window as any).uploadCSV = uploadCSV;
   (window as any).logout = logout;
+  (window as any).recountSubscribers = recountSubscribers;
 
   // Add logout button event listener
   document.addEventListener('DOMContentLoaded', () => {
@@ -718,6 +769,12 @@ if (cookieHeader) {
       nextBtn.addEventListener('click', () => {
         goToPage(currentPage + 1);
       });
+    }
+    
+    // Add recount button event listener
+    const recountBtn = document.getElementById('recount-btn');
+    if (recountBtn) {
+      recountBtn.addEventListener('click', recountSubscribers);
     }
     
     // Only load data if authenticated (admin panel is visible)

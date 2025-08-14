@@ -28,6 +28,36 @@ export const GET: APIRoute = withAdminAuth(async ({ request, locals, url }) => {
           headers: { 'Content-Type': 'application/json' }
         });
 
+      case 'recount':
+        // Get all subscriber keys and count active subscribers
+        const allSubscriberKeys = await kv.list({ prefix: 'subscriber:' });
+        let activeCount = 0;
+        
+        for (const key of allSubscriberKeys.keys) {
+          const subscriber = await kv.get(key.name, 'json') as Subscriber;
+          if (subscriber && subscriber.status === 'active') {
+            activeCount++;
+          }
+        }
+
+        // Get current stored count
+        const oldStoredCount = await kv.get('subscriber_count') || '0';
+        const oldCount = parseInt(oldStoredCount);
+
+        // Update stored count to match actual count
+        await kv.put('subscriber_count', activeCount.toString());
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Subscriber count updated successfully',
+          oldCount: oldCount,
+          newCount: activeCount,
+          difference: activeCount - oldCount
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+
       case 'list':
         // Get pagination parameters
         const page = parseInt(url.searchParams.get('page') || '1');
