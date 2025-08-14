@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { verifySession } from './auth.js';
+import { withAdminAuth } from '../../../middleware/admin-auth.js';
 
 interface Subscriber {
   email: string;
@@ -9,19 +9,8 @@ interface Subscriber {
   ip?: string;
 }
 
-export const GET: APIRoute = async ({ request, locals, url }) => {
+export const GET: APIRoute = withAdminAuth(async ({ request, locals, url }) => {
   try {
-    // Verify admin session
-    const isAuthenticated = await verifySession(request, locals);
-    if (!isAuthenticated) {
-      return new Response(JSON.stringify({
-        success: false,
-        message: 'Unauthorized'
-      }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
     const kv = locals.runtime?.env?.NEWSLETTER_KV;
     if (!kv) {
       return new Response(JSON.stringify({
@@ -112,22 +101,10 @@ export const GET: APIRoute = async ({ request, locals, url }) => {
       headers: { 'Content-Type': 'application/json' }
     });
   }
-};
+});
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = withAdminAuth(async ({ request, locals }) => {
   try {
-    // Verify admin session
-    const isAuthenticated = await verifySession(request, locals);
-    if (!isAuthenticated) {
-      return new Response(JSON.stringify({
-        success: false,
-        message: 'Unauthorized'
-      }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
     const kv = locals.runtime?.env?.NEWSLETTER_KV;
     if (!kv) {
       return new Response(JSON.stringify({
@@ -220,21 +197,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
       headers: { 'Content-Type': 'application/json' }
     });
   }
-};
+});
 
-export const DELETE: APIRoute = async ({ request, locals }) => {
+export const DELETE: APIRoute = withAdminAuth(async ({ request, locals }) => {
   try {
-    // Verify admin session
-    const isAuthenticated = await verifySession(request, locals);
-    if (!isAuthenticated) {
-      return new Response(JSON.stringify({
-        success: false,
-        message: 'Unauthorized'
-      }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
     const formData = await request.formData();
     const email = formData.get('email')?.toString()?.toLowerCase().trim();
 
@@ -299,4 +265,4 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
       headers: { 'Content-Type': 'application/json' }
     });
   }
-};
+});

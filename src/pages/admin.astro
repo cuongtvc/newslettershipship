@@ -421,7 +421,7 @@ if (cookieHeader) {
 
   async function loadSubscriberCount() {
     try {
-      const response = await fetch('/api/subscribers?action=count');
+      const response = await fetch('/api/admin/subscribers?action=count');
       const data = await response.json();
       
       if (data.success) {
@@ -439,7 +439,7 @@ if (cookieHeader) {
       document.getElementById('subscribers-list')!.classList.add('hidden');
       document.getElementById('error')!.classList.add('hidden');
 
-      const response = await fetch(`/api/subscribers?action=list&page=${page}&limit=${itemsPerPage}`);
+      const response = await fetch(`/api/admin/subscribers?action=list&page=${page}&limit=${itemsPerPage}`);
       const data = await response.json();
       
       if (data.success) {
@@ -514,7 +514,7 @@ if (cookieHeader) {
       const formData = new FormData();
       formData.append('email', email);
       
-      const response = await fetch('/api/subscribers', {
+      const response = await fetch('/api/admin/subscribers', {
         method: 'DELETE',
         body: formData
       });
@@ -540,7 +540,7 @@ if (cookieHeader) {
   // Logout functionality
   async function logout() {
     try {
-      const response = await fetch('/api/auth', {
+      const response = await fetch('/api/admin/auth', {
         method: 'DELETE'
       });
       
@@ -634,7 +634,7 @@ if (cookieHeader) {
       const formData = new FormData();
       formData.append('csv', csvContent);
 
-      const response = await fetch('/api/subscribers', {
+      const response = await fetch('/api/admin/subscribers', {
         method: 'POST',
         body: formData
       });

@@ -163,7 +163,7 @@
       const formData = new FormData();
       formData.append('password', password);
 
-      const response = await fetch('/api/auth', {
+      const response = await fetch('/api/admin/auth', {
         method: 'POST',
         body: formData
       });

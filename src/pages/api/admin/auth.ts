@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { randomBytes } from 'crypto';
+import { withAdminAuth } from '../../../middleware/admin-auth.js';
 
 interface Session {
   token: string;
@@ -9,6 +10,7 @@ interface Session {
   userAgent?: string;
 }
 
+// Login endpoint - not protected since it's for authentication
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
     const formData = await request.formData();
@@ -128,7 +130,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
 };
 
-export const DELETE: APIRoute = async ({ request, locals }) => {
+// Logout endpoint - protected by admin auth
+export const DELETE: APIRoute = withAdminAuth(async ({ request, locals }) => {
   try {
     // Get session token from cookie
     const cookieHeader = request.headers.get('cookie');
@@ -170,36 +173,4 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
       }
     );
   }
-};
-
-// Helper function to verify session (can be imported by other API routes)
-export async function verifySession(request: Request, locals: any): Promise<boolean> {
-  try {
-    const cookieHeader = request.headers.get('cookie');
-    if (!cookieHeader) return false;
-
-    const cookies = new URLSearchParams(cookieHeader.replace(/; /g, '&'));
-    const sessionToken = cookies.get('admin_session');
-    if (!sessionToken) return false;
-
-    const kv = locals.runtime?.env?.NEWSLETTER_KV;
-    if (!kv) return false;
-
-    const sessionData = await kv.get(`session:${sessionToken}`, 'json') as Session | null;
-    if (!sessionData) return false;
-
-    // Check if session is expired
-    const now = new Date();
-    const expiresAt = new Date(sessionData.expiresAt);
-    if (now > expiresAt) {
-      // Clean up expired session
-      await kv.delete(`session:${sessionToken}`);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Session verification error:', error);
-    return false;
-  }
-}
+});

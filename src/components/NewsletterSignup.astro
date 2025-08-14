@@ -6,7 +6,7 @@
   <h2>Subscribe to Our Newsletter</h2>
   <p>Get the latest updates delivered straight to your inbox.</p>
   
-  <form id="newsletter-form" method="POST" action="/api/subscribe">
+  <form id="newsletter-form" method="POST" action="/api/public/subscribe">
     <div class="form-group">
       <input 
         type="email" 
@@ -125,7 +125,7 @@
 
       try {
         const formData = new FormData(form);
-        const response = await fetch('/api/subscribe', {
+        const response = await fetch('/api/public/subscribe', {
           method: 'POST',
           body: formData
         });
