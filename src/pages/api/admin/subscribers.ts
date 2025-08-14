@@ -1,13 +1,6 @@
 import type { APIRoute } from 'astro';
 import { withAdminAuth } from '../../../middleware/admin-auth.js';
-
-interface Subscriber {
-  email: string;
-  subscribedAt: string;
-  status: 'active' | 'unsubscribed';
-  userAgent?: string;
-  ip?: string;
-}
+import type { Subscriber } from '../../../lib/email/types.js';
 
 export const GET: APIRoute = withAdminAuth(async ({ request, locals, url }) => {
   try {
@@ -53,7 +46,9 @@ export const GET: APIRoute = withAdminAuth(async ({ request, locals, url }) => {
             return {
               email: subscriber.email, // Show full email for admin
               subscribedAt: subscriber.subscribedAt,
-              status: subscriber.status
+              status: subscriber.status,
+              confirmedAt: subscriber.confirmedAt,
+              tokenExpiresAt: subscriber.tokenExpiresAt
             };
           })
         );
@@ -161,6 +156,7 @@ export const POST: APIRoute = withAdminAuth(async ({ request, locals }) => {
         email,
         subscribedAt: new Date().toISOString(),
         status: 'active',
+        confirmedAt: new Date().toISOString(), // Mark as confirmed since it's bulk upload
         userAgent: request.headers.get('user-agent') || undefined,
         ip: request.headers.get('cf-connecting-ip') || undefined,
       };

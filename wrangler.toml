@@ -2,7 +2,32 @@ name = "newsletter-shipship"
 compatibility_date = "2025-08-14"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "./dist"
-vars = { ADMIN_PASSWORD = "123123" }
+[vars]
+ADMIN_PASSWORD = "123123"
+
+# Email Configuration
+EMAIL_PROVIDER = "resend"  # Options: resend, aws-ses, postmark, sendgrid, mailgun
+FROM_EMAIL = "noreply@shipship.cc"
+SITE_URL = "https://newsletter.shipship.cc"
+SITE_NAME = "Your Newsletter"
+
+# Resend (default provider)
+RESEND_API_KEY = "re_2h9RvLYJ_KhKmeqC15Ssib4L2VKJZFfQt"
+
+# AWS SES (uncomment to use)
+# AWS_ACCESS_KEY_ID = "AKIA..."
+# AWS_SECRET_ACCESS_KEY = "your_secret_key"
+# AWS_REGION = "us-east-1"
+
+# Postmark (uncomment to use)
+# POSTMARK_SERVER_TOKEN = "your_server_token"
+
+# SendGrid (uncomment to use)
+# SENDGRID_API_KEY = "SG.your_api_key"
+
+# Mailgun (uncomment to use)
+# MAILGUN_API_KEY = "your_api_key"
+# MAILGUN_DOMAIN = "mg.yourdomain.com"
 [[kv_namespaces]]
 binding = "NEWSLETTER_KV"
 id = "bb697d9a8ab9401387c634963549d5b4"

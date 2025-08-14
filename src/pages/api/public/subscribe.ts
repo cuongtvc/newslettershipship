@@ -1,12 +1,6 @@
 import type { APIRoute } from "astro";
-
-interface Subscriber {
-  email: string;
-  subscribedAt: string;
-  status: "active" | "unsubscribed";
-  userAgent?: string;
-  ip?: string;
-}
+import type { Subscriber } from "../../../lib/email/types.js";
+import { EmailService, generateConfirmationToken, getTokenExpirationDate } from "../../../lib/email/service.js";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
@@ -62,30 +56,116 @@ export const POST: APIRoute = async ({ request, locals }) => {
             headers: { "Content-Type": "application/json" },
           }
         );
+      } else if (existingSubscriber.status === "pending") {
+        // Resend confirmation email for pending subscriptions
+        try {
+          const emailService = new EmailService(locals.runtime.env);
+          const result = await emailService.sendConfirmationEmail(email, existingSubscriber.confirmationToken!);
+          
+          if (!result.success) {
+            console.error(`Failed to resend confirmation email (${result.provider}):`, result.error);
+            return new Response(
+              JSON.stringify({
+                success: false,
+                message: "Failed to send confirmation email. Please try again.",
+              }),
+              {
+                status: 500,
+                headers: { "Content-Type": "application/json" },
+              }
+            );
+          }
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: "Confirmation email has been resent. Please check your inbox.",
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        } catch (error) {
+          console.error("Error resending confirmation email:", error);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              message: "Failed to send confirmation email. Please try again.",
+            }),
+            {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        }
       } else {
-        // Reactivate unsubscribed user
-        existingSubscriber.status = "active";
+        // Reactivate unsubscribed user with new confirmation
+        const confirmationToken = generateConfirmationToken();
+        const tokenExpiresAt = getTokenExpirationDate();
+        
+        existingSubscriber.status = "pending";
         existingSubscriber.subscribedAt = new Date().toISOString();
+        existingSubscriber.confirmationToken = confirmationToken;
+        existingSubscriber.tokenExpiresAt = tokenExpiresAt;
+        delete existingSubscriber.confirmedAt;
+        
         await kv.put(`subscriber:${email}`, JSON.stringify(existingSubscriber));
 
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: "Welcome back! Your subscription has been reactivated.",
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
+        try {
+          const emailService = new EmailService(locals.runtime.env);
+          const result = await emailService.sendConfirmationEmail(email, confirmationToken);
+          
+          if (!result.success) {
+            console.error(`Failed to send confirmation email (${result.provider}):`, result.error);
+            return new Response(
+              JSON.stringify({
+                success: false,
+                message: "Failed to send confirmation email. Please try again.",
+              }),
+              {
+                status: 500,
+                headers: { "Content-Type": "application/json" },
+              }
+            );
           }
-        );
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: "Welcome back! Please check your email to confirm your subscription.",
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        } catch (error) {
+          console.error("Error sending confirmation email:", error);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              message: "Failed to send confirmation email. Please try again.",
+            }),
+            {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        }
       }
     }
 
-    // Create new subscriber
+    // Create new subscriber with pending status
+    const confirmationToken = generateConfirmationToken();
+    const tokenExpiresAt = getTokenExpirationDate();
+    
     const subscriber: Subscriber = {
       email,
       subscribedAt: new Date().toISOString(),
-      status: "active",
+      status: "pending",
+      confirmationToken,
+      tokenExpiresAt,
       userAgent: request.headers.get("user-agent") || undefined,
       ip: request.headers.get("cf-connecting-ip") || undefined,
     };
@@ -93,22 +173,56 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // Store subscriber in KV
     await kv.put(`subscriber:${email}`, JSON.stringify(subscriber));
 
-    // Add to subscriber count (for analytics)
-    const currentCount = (await kv.get("subscriber_count")) || "0";
-    await kv.put("subscriber_count", (parseInt(currentCount) + 1).toString());
-
-    console.log("New subscription:", email);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "Successfully subscribed to newsletter! 🎉",
-      }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
+    // Send confirmation email
+    try {
+      const emailService = new EmailService(locals.runtime.env);
+      const result = await emailService.sendConfirmationEmail(email, confirmationToken);
+      
+      if (!result.success) {
+        console.error(`Failed to send confirmation email (${result.provider}):`, result.error);
+        // Clean up the pending subscriber since we couldn't send the email
+        await kv.delete(`subscriber:${email}`);
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "Failed to send confirmation email. Please try again.",
+          }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
       }
-    );
+
+      console.log("New subscription pending confirmation:", email);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Please check your email to confirm your subscription! 📧",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    } catch (error) {
+      console.error("Error sending confirmation email:", error);
+      // Clean up the pending subscriber since we couldn't send the email
+      await kv.delete(`subscriber:${email}`);
+      
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "Failed to send confirmation email. Please try again.",
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
   } catch (error) {
     console.error("Subscription error:", error);
     return new Response(

@@ -1,0 +1,235 @@
+---
+// Confirmation page for email subscriptions
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Subscription</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .loading {
+            display: block;
+        }
+        
+        .result {
+            display: none;
+        }
+        
+        .success {
+            color: #28a745;
+        }
+        
+        .error {
+            color: #dc3545;
+        }
+        
+        .success-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .resend-form {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .btn:hover {
+            background: #0056b3;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loading" class="loading">
+            <h1>Confirming Your Subscription</h1>
+            <div class="spinner"></div>
+            <p>Please wait while we confirm your email address...</p>
+        </div>
+        
+        <div id="success" class="result success">
+            <div class="success-icon">✅</div>
+            <h1>Subscription Confirmed!</h1>
+            <p id="success-message">Your email has been confirmed successfully. Welcome to our newsletter!</p>
+        </div>
+        
+        <div id="error" class="result error">
+            <div class="error-icon">❌</div>
+            <h1>Confirmation Failed</h1>
+            <p id="error-message">There was an issue confirming your subscription.</p>
+            
+            <div class="resend-form">
+                <h3>Resend Confirmation Email</h3>
+                <p>Enter your email address to receive a new confirmation link:</p>
+                
+                <form id="resend-form">
+                    <div class="form-group">
+                        <input 
+                            type="email" 
+                            id="resend-email" 
+                            name="email" 
+                            placeholder="Enter your email address" 
+                            required 
+                            class="form-input"
+                        />
+                    </div>
+                    <button type="submit" class="btn" id="resend-btn">
+                        Resend Confirmation
+                    </button>
+                </form>
+                
+                <div id="resend-message" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            
+            const loadingDiv = document.getElementById('loading');
+            const successDiv = document.getElementById('success');
+            const errorDiv = document.getElementById('error');
+            const successMessage = document.getElementById('success-message');
+            const errorMessage = document.getElementById('error-message');
+            
+            if (!token) {
+                showError('No confirmation token provided');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/public/confirm?token=${encodeURIComponent(token)}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    showSuccess(result.message);
+                } else {
+                    showError(result.message);
+                }
+            } catch (error) {
+                showError('Network error. Please try again later.');
+            }
+            
+            function showSuccess(message) {
+                loadingDiv.style.display = 'none';
+                successDiv.style.display = 'block';
+                successMessage.textContent = message;
+            }
+            
+            function showError(message) {
+                loadingDiv.style.display = 'none';
+                errorDiv.style.display = 'block';
+                errorMessage.textContent = message;
+            }
+            
+            // Handle resend form
+            const resendForm = document.getElementById('resend-form');
+            const resendBtn = document.getElementById('resend-btn');
+            const resendMessage = document.getElementById('resend-message');
+            
+            resendForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const email = document.getElementById('resend-email').value;
+                
+                resendBtn.disabled = true;
+                resendBtn.textContent = 'Sending...';
+                resendMessage.innerHTML = '';
+                
+                try {
+                    const formData = new FormData();
+                    formData.append('email', email);
+                    
+                    const response = await fetch('/api/public/confirm', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        resendMessage.innerHTML = `<div style="color: #28a745; padding: 10px; background: #d4edda; border-radius: 4px;">${result.message}</div>`;
+                        resendForm.reset();
+                    } else {
+                        resendMessage.innerHTML = `<div style="color: #dc3545; padding: 10px; background: #f8d7da; border-radius: 4px;">${result.message}</div>`;
+                    }
+                } catch (error) {
+                    resendMessage.innerHTML = `<div style="color: #dc3545; padding: 10px; background: #f8d7da; border-radius: 4px;">Network error. Please try again.</div>`;
+                } finally {
+                    resendBtn.disabled = false;
+                    resendBtn.textContent = 'Resend Confirmation';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
