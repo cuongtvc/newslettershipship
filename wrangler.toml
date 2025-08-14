@@ -2,8 +2,16 @@ name = "newsletter-shipship"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "./dist"
 
+[[kv_namespaces]]
+binding = "NEWSLETTER_KV"
+id = "bb697d9a8ab9401387c634963549d5b4"
+preview_id = "eeb6ffd66da6468594c4b34870ea0cb1"
+
 [env.production]
 vars = { NODE_ENV = "production" }
+[[env.production.kv_namespaces]]
+binding = "NEWSLETTER_KV"
+id = "bb697d9a8ab9401387c634963549d5b4"
 
 [env.preview]
 vars = { NODE_ENV = "preview" }

@@ -1,0 +1,264 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Newsletter Admin">
+  <main>
+    <div class="admin-container">
+      <h1>Newsletter Administration</h1>
+      
+      <div class="stats-card">
+        <h2>Subscriber Statistics</h2>
+        <div class="stat">
+          <span class="stat-number" id="subscriber-count">-</span>
+          <span class="stat-label">Total Subscribers</span>
+        </div>
+      </div>
+
+      <div class="subscribers-card">
+        <h2>Recent Subscribers</h2>
+        <div id="loading">Loading subscribers...</div>
+        <div id="subscribers-list" class="hidden">
+          <table>
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Subscribed Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="subscribers-tbody">
+            </tbody>
+          </table>
+        </div>
+        <div id="error" class="error hidden"></div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .admin-container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  h1 {
+    color: #333;
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+
+  .stats-card, .subscribers-card {
+    background: white;
+    border-radius: 8px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+
+  .stats-card h2, .subscribers-card h2 {
+    color: #333;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 0.5rem;
+  }
+
+  .stat {
+    text-align: center;
+    padding: 1rem;
+  }
+
+  .stat-number {
+    display: block;
+    font-size: 3rem;
+    font-weight: bold;
+    color: #007bff;
+  }
+
+  .stat-label {
+    color: #666;
+    font-size: 1.1rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+  }
+
+  th, td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+  }
+
+  th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+  }
+
+  tr:hover {
+    background-color: #f8f9fa;
+  }
+
+  .status-active {
+    color: #28a745;
+    font-weight: 600;
+  }
+
+  .status-unsubscribed {
+    color: #dc3545;
+    font-weight: 600;
+  }
+
+  .btn {
+    padding: 0.25rem 0.75rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+  }
+
+  .btn-danger {
+    background: #dc3545;
+    color: white;
+  }
+
+  .btn-danger:hover {
+    background: #c82333;
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .error {
+    color: #dc3545;
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-top: 1rem;
+  }
+
+  .hidden {
+    display: none;
+  }
+
+  #loading {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+  }
+
+  @media (max-width: 768px) {
+    .admin-container {
+      padding: 0 0.5rem;
+    }
+
+    table {
+      font-size: 0.875rem;
+    }
+
+    th, td {
+      padding: 0.5rem;
+    }
+  }
+</style>
+
+<script>
+  async function loadSubscriberCount() {
+    try {
+      const response = await fetch('/api/subscribers?action=count');
+      const data = await response.json();
+      
+      if (data.success) {
+        document.getElementById('subscriber-count')!.textContent = data.count.toString();
+      }
+    } catch (error) {
+      console.error('Failed to load subscriber count:', error);
+    }
+  }
+
+  async function loadSubscribers() {
+    try {
+      const response = await fetch('/api/subscribers?action=list');
+      const data = await response.json();
+      
+      if (data.success) {
+        const tbody = document.getElementById('subscribers-tbody')!;
+        tbody.innerHTML = '';
+        
+        data.subscribers.forEach((subscriber: any) => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${subscriber.email}</td>
+            <td>${new Date(subscriber.subscribedAt).toLocaleDateString()}</td>
+            <td><span class="status-${subscriber.status}">${subscriber.status}</span></td>
+            <td>
+              ${subscriber.status === 'active' ? 
+                `<button class="btn btn-danger" onclick="unsubscribeUser('${subscriber.email.replace(/\*+/, '')}')">Unsubscribe</button>` : 
+                '-'
+              }
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+        
+        document.getElementById('loading')!.classList.add('hidden');
+        document.getElementById('subscribers-list')!.classList.remove('hidden');
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error) {
+      console.error('Failed to load subscribers:', error);
+      document.getElementById('loading')!.classList.add('hidden');
+      document.getElementById('error')!.textContent = 'Failed to load subscribers';
+      document.getElementById('error')!.classList.remove('hidden');
+    }
+  }
+
+  async function unsubscribeUser(email: string) {
+    if (!confirm(`Are you sure you want to unsubscribe ${email}?`)) {
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('email', email);
+      
+      const response = await fetch('/api/subscribers', {
+        method: 'DELETE',
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('User unsubscribed successfully');
+        loadSubscribers();
+        loadSubscriberCount();
+      } else {
+        alert('Failed to unsubscribe: ' + data.message);
+      }
+    } catch (error) {
+      console.error('Unsubscribe error:', error);
+      alert('Failed to unsubscribe user');
+    }
+  }
+
+  // Make function global for onclick handlers
+  (window as any).unsubscribeUser = unsubscribeUser;
+
+  // Load data on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    loadSubscriberCount();
+    loadSubscribers();
+  });
+</script>
