@@ -1,11 +1,13 @@
 import type { ConfirmationEmailParams, WelcomeEmailParams, EmailResult } from '../types.js';
 import { BaseEmailProvider } from './base.js';
+import sgMail from '@sendgrid/mail';
 
 export class SendGridProvider extends BaseEmailProvider {
   readonly name = 'sendgrid';
   
   constructor(private config: { apiKey: string; fromEmail: string }) {
     super();
+    sgMail.setApiKey(this.config.apiKey);
   }
 
   validateConfig(): boolean {
@@ -13,76 +15,52 @@ export class SendGridProvider extends BaseEmailProvider {
   }
 
   protected async sendConfirmationEmailImpl(params: ConfirmationEmailParams): Promise<EmailResult> {
-    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.config.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        personalizations: [{
-          to: [{ email: params.to }],
-          subject: this.buildConfirmationSubject(params.siteName),
-        }],
-        from: { email: this.config.fromEmail },
-        content: [{
-          type: 'text/html',
-          value: this.buildConfirmationTemplate(params),
-        }],
-      }),
-    });
+    try {
+      const msg = {
+        to: params.to,
+        from: this.config.fromEmail,
+        subject: this.buildConfirmationSubject(params.siteName),
+        html: this.buildConfirmationTemplate(params),
+      };
 
-    if (!response.ok) {
-      const errorResult = await response.json() as any;
+      const response = await sgMail.send(msg);
+      
+      return {
+        success: true,
+        messageId: response[0]?.headers?.['x-message-id'],
+        provider: this.name,
+      };
+    } catch (error: any) {
       return {
         success: false,
-        error: errorResult.errors?.[0]?.message || 'Failed to send email',
-        provider: this.name
+        error: error.response?.body?.errors?.[0]?.message || error.message || 'Failed to send email',
+        provider: this.name,
       };
     }
-
-    const messageId = response.headers.get('x-message-id');
-    return {
-      success: true,
-      messageId: messageId || undefined,
-      provider: this.name
-    };
   }
 
   protected async sendWelcomeEmailImpl(params: WelcomeEmailParams): Promise<EmailResult> {
-    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.config.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        personalizations: [{
-          to: [{ email: params.to }],
-          subject: this.buildWelcomeSubject(params.siteName),
-        }],
-        from: { email: this.config.fromEmail },
-        content: [{
-          type: 'text/html',
-          value: this.buildWelcomeTemplate(params),
-        }],
-      }),
-    });
+    try {
+      const msg = {
+        to: params.to,
+        from: this.config.fromEmail,
+        subject: this.buildWelcomeSubject(params.siteName),
+        html: this.buildWelcomeTemplate(params),
+      };
 
-    if (!response.ok) {
-      const errorResult = await response.json() as any;
+      const response = await sgMail.send(msg);
+      
+      return {
+        success: true,
+        messageId: response[0]?.headers?.['x-message-id'],
+        provider: this.name,
+      };
+    } catch (error: any) {
       return {
         success: false,
-        error: errorResult.errors?.[0]?.message || 'Failed to send email',
-        provider: this.name
+        error: error.response?.body?.errors?.[0]?.message || error.message || 'Failed to send email',
+        provider: this.name,
       };
     }
-
-    const messageId = response.headers.get('x-message-id');
-    return {
-      success: true,
-      messageId: messageId || undefined,
-      provider: this.name
-    };
   }
 }

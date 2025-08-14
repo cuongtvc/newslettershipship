@@ -1,11 +1,14 @@
 import type { ConfirmationEmailParams, WelcomeEmailParams, EmailResult } from '../types.js';
 import { BaseEmailProvider } from './base.js';
+import { ServerClient } from 'postmark';
 
 export class PostmarkProvider extends BaseEmailProvider {
   readonly name = 'postmark';
+  private client: ServerClient;
   
   constructor(private config: { serverToken: string; fromEmail: string }) {
     super();
+    this.client = new ServerClient(this.config.serverToken);
   }
 
   validateConfig(): boolean {
@@ -13,68 +16,48 @@ export class PostmarkProvider extends BaseEmailProvider {
   }
 
   protected async sendConfirmationEmailImpl(params: ConfirmationEmailParams): Promise<EmailResult> {
-    const response = await fetch('https://api.postmarkapp.com/email', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Postmark-Server-Token': this.config.serverToken,
-      },
-      body: JSON.stringify({
+    try {
+      const response = await this.client.sendEmail({
         From: this.config.fromEmail,
         To: params.to,
         Subject: this.buildConfirmationSubject(params.siteName),
         HtmlBody: this.buildConfirmationTemplate(params),
-      }),
-    });
+      });
 
-    const result = await response.json() as any;
-    
-    if (!response.ok) {
+      return {
+        success: true,
+        messageId: response.MessageID,
+        provider: this.name,
+      };
+    } catch (error: any) {
       return {
         success: false,
-        error: result.Message || 'Failed to send email',
-        provider: this.name
+        error: error.message || 'Failed to send email',
+        provider: this.name,
       };
     }
-
-    return {
-      success: true,
-      messageId: result.MessageID,
-      provider: this.name
-    };
   }
 
   protected async sendWelcomeEmailImpl(params: WelcomeEmailParams): Promise<EmailResult> {
-    const response = await fetch('https://api.postmarkapp.com/email', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Postmark-Server-Token': this.config.serverToken,
-      },
-      body: JSON.stringify({
+    try {
+      const response = await this.client.sendEmail({
         From: this.config.fromEmail,
         To: params.to,
         Subject: this.buildWelcomeSubject(params.siteName),
         HtmlBody: this.buildWelcomeTemplate(params),
-      }),
-    });
+      });
 
-    const result = await response.json() as any;
-    
-    if (!response.ok) {
+      return {
+        success: true,
+        messageId: response.MessageID,
+        provider: this.name,
+      };
+    } catch (error: any) {
       return {
         success: false,
-        error: result.Message || 'Failed to send email',
-        provider: this.name
+        error: error.message || 'Failed to send email',
+        provider: this.name,
       };
     }
-
-    return {
-      success: true,
-      messageId: result.MessageID,
-      provider: this.name
-    };
   }
 }

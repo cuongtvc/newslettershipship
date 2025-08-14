@@ -4,12 +4,15 @@ import type {
   EmailResult,
 } from "../types.js";
 import { BaseEmailProvider } from "./base.js";
+import { Resend } from "resend";
 
 export class ResendProvider extends BaseEmailProvider {
   readonly name = "resend";
+  private resend: Resend;
 
   constructor(private config: { apiKey: string; fromEmail: string }) {
     super();
+    this.resend = new Resend(this.config.apiKey);
   }
 
   validateConfig(): boolean {
@@ -17,68 +20,56 @@ export class ResendProvider extends BaseEmailProvider {
   }
 
   protected async sendConfirmationEmailImpl(params: ConfirmationEmailParams): Promise<EmailResult> {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.config.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    try {
+      const { data, error } = await this.resend.emails.send({
         from: this.config.fromEmail,
         to: params.to,
         subject: this.buildConfirmationSubject(params.siteName),
         html: this.buildConfirmationTemplate(params),
-      }),
-    });
+      });
 
-    const result = await response.json() as any;
+      if (error) {
+        return {
+          success: false,
+          error: error.message,
+          provider: this.name,
+        };
+      }
 
-    if (!response.ok) {
-      console.error("Error when sending email", result);
       return {
-        success: false,
-        error: result.message || "Failed to send email",
+        success: true,
+        messageId: data?.id,
         provider: this.name,
       };
+    } catch (error) {
+      return this.handleError(error);
     }
-
-    return {
-      success: true,
-      messageId: result.id,
-      provider: this.name,
-    };
   }
 
   protected async sendWelcomeEmailImpl(params: WelcomeEmailParams): Promise<EmailResult> {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.config.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    try {
+      const { data, error } = await this.resend.emails.send({
         from: this.config.fromEmail,
         to: params.to,
         subject: this.buildWelcomeSubject(params.siteName),
         html: this.buildWelcomeTemplate(params),
-      }),
-    });
+      });
 
-    const result = await response.json() as any;
+      if (error) {
+        return {
+          success: false,
+          error: error.message,
+          provider: this.name,
+        };
+      }
 
-    if (!response.ok) {
-      console.error("Error when sending email", result);
       return {
-        success: false,
-        error: result.message || "Failed to send email",
+        success: true,
+        messageId: data?.id,
         provider: this.name,
       };
+    } catch (error) {
+      return this.handleError(error);
     }
-
-    return {
-      success: true,
-      messageId: result.id,
-      provider: this.name,
-    };
   }
 }
