@@ -1,0 +1,209 @@
+---
+// AdminLogin.astro - Login form component
+---
+
+<div class="login-container">
+  <div class="login-card">
+    <h2>Admin Login</h2>
+    <form id="login-form" class="login-form">
+      <div class="form-group">
+        <label for="password">Password:</label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          required 
+          autocomplete="current-password"
+        />
+      </div>
+      <button type="submit" class="btn btn-primary">
+        <span class="btn-text">Login</span>
+        <span class="btn-loading hidden">Logging in...</span>
+      </button>
+    </form>
+    <div id="login-error" class="error hidden"></div>
+  </div>
+</div>
+
+<style>
+  .login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    padding: 2rem;
+  }
+
+  .login-card {
+    background: white;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .login-card h2 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 0.5rem;
+  }
+
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .form-group label {
+    font-weight: 600;
+    color: #333;
+  }
+
+  .form-group input {
+    padding: 0.75rem;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+  }
+
+  .form-group input:focus {
+    outline: none;
+    border-color: #007bff;
+  }
+
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    position: relative;
+  }
+
+  .btn-primary {
+    background: #007bff;
+    color: white;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: #0056b3;
+  }
+
+  .btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .btn-loading {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .error {
+    color: #dc3545;
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-top: 1rem;
+    text-align: center;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  @media (max-width: 480px) {
+    .login-container {
+      padding: 1rem;
+    }
+
+    .login-card {
+      padding: 1.5rem;
+    }
+  }
+</style>
+
+<script>
+  const loginForm = document.getElementById('login-form') as HTMLFormElement;
+  const passwordInput = document.getElementById('password') as HTMLInputElement;
+  const loginError = document.getElementById('login-error') as HTMLElement;
+  const btnText = document.querySelector('.btn-text') as HTMLElement;
+  const btnLoading = document.querySelector('.btn-loading') as HTMLElement;
+  const submitBtn = loginForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const password = passwordInput.value.trim();
+    if (!password) {
+      showError('Please enter a password');
+      return;
+    }
+
+    // Show loading state
+    setLoading(true);
+    hideError();
+
+    try {
+      const formData = new FormData();
+      formData.append('password', password);
+
+      const response = await fetch('/api/auth', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Redirect to reload the page with authentication
+        window.location.reload();
+      } else {
+        showError(data.message || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      showError('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  function setLoading(loading: boolean) {
+    submitBtn.disabled = loading;
+    if (loading) {
+      btnText.classList.add('hidden');
+      btnLoading.classList.remove('hidden');
+    } else {
+      btnText.classList.remove('hidden');
+      btnLoading.classList.add('hidden');
+    }
+  }
+
+  function showError(message: string) {
+    loginError.textContent = message;
+    loginError.classList.remove('hidden');
+  }
+
+  function hideError() {
+    loginError.classList.add('hidden');
+  }
+
+  // Focus password input on load
+  passwordInput.focus();
+</script>

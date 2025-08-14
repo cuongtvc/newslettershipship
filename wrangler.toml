@@ -1,7 +1,8 @@
 name = "newsletter-shipship"
-compatibility_date = "2024-01-01"
+compatibility_date = "2025-08-14"
+compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "./dist"
-
+vars = { ADMIN_PASSWORD = "123123" }
 [[kv_namespaces]]
 binding = "NEWSLETTER_KV"
 id = "bb697d9a8ab9401387c634963549d5b4"

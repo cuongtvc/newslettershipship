@@ -1,40 +1,70 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import AdminLogin from '../components/AdminLogin.astro';
+
+// Check authentication on server side
+let isAuthenticated = false;
+
+const cookieHeader = Astro.request.headers.get('cookie');
+if (cookieHeader) {
+  const cookies = new URLSearchParams(cookieHeader.replace(/; /g, '&'));
+  const sessionToken = cookies.get('admin_session');
+  
+  if (sessionToken && (Astro.locals as any).runtime?.env?.NEWSLETTER_KV) {
+    try {
+      const sessionData = await (Astro.locals as any).runtime.env.NEWSLETTER_KV.get(`session:${sessionToken}`, 'json');
+      if (sessionData) {
+        const now = new Date();
+        const expiresAt = new Date(sessionData.expiresAt);
+        isAuthenticated = now <= expiresAt;
+      }
+    } catch (error) {
+      console.error('Session check error:', error);
+    }
+  }
+}
 ---
 
 <Layout title="Newsletter Admin">
   <main>
-    <div class="admin-container">
-      <h1>Newsletter Administration</h1>
-      
-      <div class="stats-card">
-        <h2>Subscriber Statistics</h2>
-        <div class="stat">
-          <span class="stat-number" id="subscriber-count">-</span>
-          <span class="stat-label">Total Subscribers</span>
+    {!isAuthenticated ? (
+      <AdminLogin />
+    ) : (
+      <div class="admin-container">
+        <div class="admin-header">
+          <h1>Newsletter Administration</h1>
+          <button id="logout-btn" class="btn btn-secondary">Logout</button>
         </div>
-      </div>
+        
+        <div class="stats-card">
+          <h2>Subscriber Statistics</h2>
+          <div class="stat">
+            <span class="stat-number" id="subscriber-count">-</span>
+            <span class="stat-label">Total Subscribers</span>
+          </div>
+        </div>
 
-      <div class="subscribers-card">
-        <h2>Recent Subscribers</h2>
-        <div id="loading">Loading subscribers...</div>
-        <div id="subscribers-list" class="hidden">
-          <table>
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Subscribed Date</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="subscribers-tbody">
-            </tbody>
-          </table>
+        <div class="subscribers-card">
+          <h2>Recent Subscribers</h2>
+          <div id="loading">Loading subscribers...</div>
+          <div id="subscribers-list" class="hidden">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Subscribed Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="subscribers-tbody">
+              </tbody>
+            </table>
+          </div>
+          <div id="error" class="error hidden"></div>
         </div>
-        <div id="error" class="error hidden"></div>
       </div>
-    </div>
+    )}
   </main>
 </Layout>
 
@@ -45,10 +75,16 @@ import Layout from '../layouts/Layout.astro';
     padding: 0 1rem;
   }
 
+  .admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+  }
+
   h1 {
     color: #333;
-    margin-bottom: 2rem;
-    text-align: center;
+    margin: 0;
   }
 
   .stats-card, .subscribers-card {
@@ -131,6 +167,15 @@ import Layout from '../layouts/Layout.astro';
 
   .btn-danger:hover {
     background: #c82333;
+  }
+
+  .btn-secondary {
+    background: #6c757d;
+    color: white;
+  }
+
+  .btn-secondary:hover {
+    background: #545b62;
   }
 
   .btn:disabled {
@@ -256,9 +301,40 @@ import Layout from '../layouts/Layout.astro';
   // Make function global for onclick handlers
   (window as any).unsubscribeUser = unsubscribeUser;
 
-  // Load data on page load
+  // Logout functionality
+  async function logout() {
+    try {
+      const response = await fetch('/api/auth', {
+        method: 'DELETE'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert('Logout failed');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      alert('Logout failed');
+    }
+  }
+
+  // Make logout function global
+  (window as any).logout = logout;
+
+  // Add logout button event listener
   document.addEventListener('DOMContentLoaded', () => {
-    loadSubscriberCount();
-    loadSubscribers();
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', logout);
+    }
+    
+    // Only load data if authenticated (admin panel is visible)
+    if (document.querySelector('.admin-container')) {
+      loadSubscriberCount();
+      loadSubscribers();
+    }
   });
 </script>
