@@ -86,6 +86,30 @@ if (cookieHeader) {
           </div>
         </div>
 
+        <div class="newsletter-card">
+          <h2>Send Newsletter</h2>
+          <form id="newsletter-form">
+            <div class="form-group">
+              <label for="newsletter-subject">Subject Line</label>
+              <input type="text" id="newsletter-subject" class="form-input" placeholder="Enter newsletter subject" required />
+            </div>
+            <div class="form-group">
+              <label for="newsletter-content">Content</label>
+              <textarea id="newsletter-content" class="form-textarea" rows="10" placeholder="Enter your newsletter content (HTML is supported)" required></textarea>
+            </div>
+            <button type="submit" id="send-newsletter-btn" class="btn btn-primary">Send to All Active Subscribers</button>
+          </form>
+          <div id="newsletter-progress" class="hidden">
+            <div class="progress-bar">
+              <div id="newsletter-progress-fill" class="progress-fill"></div>
+            </div>
+            <div id="newsletter-status">Sending newsletter...</div>
+          </div>
+          <div id="newsletter-result" class="hidden newsletter-result">
+            <p id="newsletter-result-text"></p>
+          </div>
+        </div>
+
         <div class="subscribers-card">
           <h2>All Subscribers</h2>
           <div id="loading">Loading subscribers...</div>
@@ -137,7 +161,7 @@ if (cookieHeader) {
     margin: 0;
   }
 
-  .stats-card, .subscribers-card, .upload-card {
+  .stats-card, .subscribers-card, .upload-card, .newsletter-card {
     background: white;
     border-radius: 8px;
     padding: 2rem;
@@ -145,7 +169,7 @@ if (cookieHeader) {
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
   }
 
-  .stats-card h2, .subscribers-card h2, .upload-card h2 {
+  .stats-card h2, .subscribers-card h2, .upload-card h2, .newsletter-card h2 {
     color: #333;
     margin-bottom: 1rem;
     border-bottom: 2px solid #007bff;
@@ -414,6 +438,62 @@ if (cookieHeader) {
     margin: 0;
     padding-left: 1.5rem;
     color: #721c24;
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    box-sizing: border-box;
+  }
+
+  .form-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: inherit;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+
+  .form-input:focus,
+  .form-textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  }
+
+  .newsletter-result {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 4px;
+  }
+
+  .newsletter-result.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+
+  .newsletter-result.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
   }
 
   @media (max-width: 768px) {
@@ -743,10 +823,90 @@ if (cookieHeader) {
     }
   }
 
+  // Newsletter sending functionality
+  async function sendNewsletter() {
+    const form = document.getElementById('newsletter-form') as HTMLFormElement;
+    const subjectInput = document.getElementById('newsletter-subject') as HTMLInputElement;
+    const contentInput = document.getElementById('newsletter-content') as HTMLTextAreaElement;
+    const sendBtn = document.getElementById('send-newsletter-btn') as HTMLButtonElement;
+    const progressDiv = document.getElementById('newsletter-progress')!;
+    const progressFill = document.getElementById('newsletter-progress-fill')!;
+    const statusDiv = document.getElementById('newsletter-status')!;
+    const resultDiv = document.getElementById('newsletter-result')!;
+    const resultText = document.getElementById('newsletter-result-text')!;
+
+    const subject = subjectInput.value.trim();
+    const content = contentInput.value.trim();
+
+    if (!subject || !content) {
+      resultDiv.className = 'newsletter-result error';
+      resultText.textContent = 'Please fill in both subject and content fields.';
+      resultDiv.classList.remove('hidden');
+      return;
+    }
+
+    // Confirm before sending
+    if (!confirm(`Are you sure you want to send this newsletter to all active subscribers?\n\nSubject: "${subject}"`)) {
+      return;
+    }
+
+    // Show progress
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending...';
+    progressDiv.classList.remove('hidden');
+    resultDiv.classList.add('hidden');
+    progressFill.style.width = '10%';
+    statusDiv.textContent = 'Starting newsletter send...';
+
+    try {
+      const response = await fetch('/api/admin/newsletter', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ 
+          subject, 
+          content 
+        })
+      });
+
+      const data = await response.json() as any;
+      progressFill.style.width = '100%';
+
+      if (data.success) {
+        statusDiv.textContent = 'Newsletter sent successfully!';
+        resultDiv.className = 'newsletter-result success';
+        resultText.textContent = data.message;
+        
+        // Clear form
+        form.reset();
+        
+        setTimeout(() => {
+          progressDiv.classList.add('hidden');
+        }, 2000);
+      } else {
+        throw new Error(data.message);
+      }
+
+      resultDiv.classList.remove('hidden');
+
+    } catch (error) {
+      console.error('Newsletter sending failed:', error);
+      progressDiv.classList.add('hidden');
+      resultDiv.className = 'newsletter-result error';
+      resultText.textContent = error instanceof Error ? error.message : 'Failed to send newsletter';
+      resultDiv.classList.remove('hidden');
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.textContent = 'Send to All Active Subscribers';
+    }
+  }
+
   // Make functions global
   (window as any).uploadCSV = uploadCSV;
   (window as any).logout = logout;
   (window as any).recountSubscribers = recountSubscribers;
+  (window as any).sendNewsletter = sendNewsletter;
 
   // Add logout button event listener
   document.addEventListener('DOMContentLoaded', () => {
@@ -775,6 +935,15 @@ if (cookieHeader) {
     const recountBtn = document.getElementById('recount-btn');
     if (recountBtn) {
       recountBtn.addEventListener('click', recountSubscribers);
+    }
+    
+    // Add newsletter form event listener
+    const newsletterForm = document.getElementById('newsletter-form') as HTMLFormElement;
+    if (newsletterForm) {
+      newsletterForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        sendNewsletter();
+      });
     }
     
     // Only load data if authenticated (admin panel is visible)

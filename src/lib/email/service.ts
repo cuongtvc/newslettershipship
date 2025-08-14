@@ -91,6 +91,25 @@ export class EmailService {
     });
   }
 
+  async sendNewsletter(params: {
+    to: string;
+    subject: string;
+    content: string;
+    unsubscribeToken?: string;
+  }): Promise<EmailResult> {
+    const unsubscribeUrl = params.unsubscribeToken ? 
+      `${this.siteUrl}/unsubscribe?token=${params.unsubscribeToken}` : 
+      undefined;
+      
+    return this.provider.sendNewsletter({
+      to: params.to,
+      subject: params.subject,
+      content: params.content,
+      unsubscribeUrl,
+      siteName: this.siteName,
+    });
+  }
+
   getProviderName(): string {
     return this.provider.name;
   }

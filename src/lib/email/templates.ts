@@ -76,3 +76,36 @@ export function buildWelcomeTemplate(params: WelcomeEmailParams): string {
     </html>
   `;
 }
+
+export interface NewsletterEmailParams {
+  subject: string;
+  content: string;
+  unsubscribeUrl?: string;
+  siteName?: string;
+}
+
+export function buildNewsletterTemplate(params: NewsletterEmailParams): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${params.subject}</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="padding: 20px;">
+        ${params.content}
+      </div>
+      
+      ${params.unsubscribeUrl ? `
+      <div style="border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px;">
+        <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">
+          You can <a href="${params.unsubscribeUrl}" style="color: #999; text-decoration: none;">unsubscribe</a> at any time.
+        </p>
+      </div>
+      ` : ''}
+    </body>
+    </html>
+  `;
+}

@@ -1,4 +1,4 @@
-import type { ConfirmationEmailParams, WelcomeEmailParams, EmailResult } from '../types.js';
+import type { ConfirmationEmailParams, WelcomeEmailParams, NewsletterEmailParams, EmailResult } from '../types.js';
 import { BaseEmailProvider } from './base.js';
 import { ServerClient } from 'postmark';
 
@@ -45,6 +45,29 @@ export class PostmarkProvider extends BaseEmailProvider {
         To: params.to,
         Subject: this.buildWelcomeSubject(params.siteName),
         HtmlBody: this.buildWelcomeTemplate(params),
+      });
+
+      return {
+        success: true,
+        messageId: response.MessageID,
+        provider: this.name,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to send email',
+        provider: this.name,
+      };
+    }
+  }
+
+  protected async sendNewsletterImpl(params: NewsletterEmailParams): Promise<EmailResult> {
+    try {
+      const response = await this.client.sendEmail({
+        From: this.config.fromEmail,
+        To: params.to,
+        Subject: params.subject,
+        HtmlBody: this.buildNewsletterTemplate(params),
       });
 
       return {

@@ -1,6 +1,7 @@
 import type {
   ConfirmationEmailParams,
   WelcomeEmailParams,
+  NewsletterEmailParams,
   EmailResult,
 } from "../types.js";
 import { BaseEmailProvider } from "./base.js";
@@ -53,6 +54,33 @@ export class ResendProvider extends BaseEmailProvider {
         to: params.to,
         subject: this.buildWelcomeSubject(params.siteName),
         html: this.buildWelcomeTemplate(params),
+      });
+
+      if (error) {
+        return {
+          success: false,
+          error: error.message,
+          provider: this.name,
+        };
+      }
+
+      return {
+        success: true,
+        messageId: data?.id,
+        provider: this.name,
+      };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  protected async sendNewsletterImpl(params: NewsletterEmailParams): Promise<EmailResult> {
+    try {
+      const { data, error } = await this.resend.emails.send({
+        from: this.config.fromEmail,
+        to: params.to,
+        subject: params.subject,
+        html: this.buildNewsletterTemplate(params),
       });
 
       if (error) {

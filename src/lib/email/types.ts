@@ -2,6 +2,7 @@ export interface EmailProvider {
   name: string;
   sendConfirmationEmail(params: ConfirmationEmailParams): Promise<EmailResult>;
   sendWelcomeEmail(params: WelcomeEmailParams): Promise<EmailResult>;
+  sendNewsletter(params: NewsletterEmailParams): Promise<EmailResult>;
   validateConfig(): boolean;
 }
 
@@ -13,6 +14,14 @@ export interface ConfirmationEmailParams {
 
 export interface WelcomeEmailParams {
   to: string;
+  siteName?: string;
+  unsubscribeUrl?: string;
+}
+
+export interface NewsletterEmailParams {
+  to: string;
+  subject: string;
+  content: string;
   siteName?: string;
   unsubscribeUrl?: string;
 }

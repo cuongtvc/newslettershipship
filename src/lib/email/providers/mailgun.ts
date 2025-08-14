@@ -1,4 +1,4 @@
-import type { ConfirmationEmailParams, WelcomeEmailParams, EmailResult } from '../types.js';
+import type { ConfirmationEmailParams, WelcomeEmailParams, NewsletterEmailParams, EmailResult } from '../types.js';
 import { BaseEmailProvider } from './base.js';
 import Mailgun from 'mailgun.js';
 import formData from 'form-data';
@@ -50,6 +50,29 @@ export class MailgunProvider extends BaseEmailProvider {
         to: params.to,
         subject: this.buildWelcomeSubject(params.siteName),
         html: this.buildWelcomeTemplate(params),
+      });
+
+      return {
+        success: true,
+        messageId: response.id,
+        provider: this.name,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to send email',
+        provider: this.name,
+      };
+    }
+  }
+
+  protected async sendNewsletterImpl(params: NewsletterEmailParams): Promise<EmailResult> {
+    try {
+      const response = await this.mailgun.messages.create(this.config.domain, {
+        from: this.config.fromEmail,
+        to: params.to,
+        subject: params.subject,
+        html: this.buildNewsletterTemplate(params),
       });
 
       return {

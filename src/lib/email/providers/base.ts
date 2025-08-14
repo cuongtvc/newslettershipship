@@ -2,9 +2,10 @@ import type {
   EmailProvider,
   ConfirmationEmailParams,
   WelcomeEmailParams,
+  NewsletterEmailParams,
   EmailResult,
 } from "../types.js";
-import { buildConfirmationTemplate, buildWelcomeTemplate } from "../templates.js";
+import { buildConfirmationTemplate, buildWelcomeTemplate, buildNewsletterTemplate } from "../templates.js";
 
 export abstract class BaseEmailProvider implements EmailProvider {
   abstract readonly name: string;
@@ -17,6 +18,15 @@ export abstract class BaseEmailProvider implements EmailProvider {
 
   protected buildWelcomeTemplate(params: WelcomeEmailParams): string {
     return buildWelcomeTemplate(params);
+  }
+
+  protected buildNewsletterTemplate(params: NewsletterEmailParams): string {
+    return buildNewsletterTemplate({
+      subject: params.subject,
+      content: params.content,
+      unsubscribeUrl: params.unsubscribeUrl,
+      siteName: params.siteName
+    });
   }
 
   protected handleError(error: unknown): EmailResult {
@@ -51,6 +61,15 @@ export abstract class BaseEmailProvider implements EmailProvider {
     }
   }
 
+  async sendNewsletter(params: NewsletterEmailParams): Promise<EmailResult> {
+    try {
+      return await this.sendNewsletterImpl(params);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   protected abstract sendConfirmationEmailImpl(params: ConfirmationEmailParams): Promise<EmailResult>;
   protected abstract sendWelcomeEmailImpl(params: WelcomeEmailParams): Promise<EmailResult>;
+  protected abstract sendNewsletterImpl(params: NewsletterEmailParams): Promise<EmailResult>;
 }

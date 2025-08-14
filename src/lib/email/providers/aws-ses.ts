@@ -1,4 +1,4 @@
-import type { ConfirmationEmailParams, WelcomeEmailParams, EmailResult } from '../types.js';
+import type { ConfirmationEmailParams, WelcomeEmailParams, NewsletterEmailParams, EmailResult } from '../types.js';
 import { BaseEmailProvider } from './base.js';
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
@@ -83,6 +83,43 @@ export class AWSSeSProvider extends BaseEmailProvider {
           Body: {
             Html: {
               Data: this.buildWelcomeTemplate(params),
+              Charset: 'UTF-8',
+            },
+          },
+        },
+      });
+
+      const result = await this.sesClient.send(command);
+      
+      return {
+        success: true,
+        messageId: result.MessageId,
+        provider: this.name,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to send email',
+        provider: this.name,
+      };
+    }
+  }
+
+  protected async sendNewsletterImpl(params: NewsletterEmailParams): Promise<EmailResult> {
+    try {
+      const command = new SendEmailCommand({
+        Source: this.config.fromEmail,
+        Destination: {
+          ToAddresses: [params.to],
+        },
+        Message: {
+          Subject: {
+            Data: params.subject,
+            Charset: 'UTF-8',
+          },
+          Body: {
+            Html: {
+              Data: this.buildNewsletterTemplate(params),
               Charset: 'UTF-8',
             },
           },
