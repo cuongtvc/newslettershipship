@@ -45,9 +45,12 @@ if (cookieHeader) {
         </div>
 
         <div class="subscribers-card">
-          <h2>Recent Subscribers</h2>
+          <h2>All Subscribers</h2>
           <div id="loading">Loading subscribers...</div>
           <div id="subscribers-list" class="hidden">
+            <div class="pagination-info">
+              <span id="pagination-info-text"></span>
+            </div>
             <table>
               <thead>
                 <tr>
@@ -60,6 +63,11 @@ if (cookieHeader) {
               <tbody id="subscribers-tbody">
               </tbody>
             </table>
+            <div class="pagination-controls">
+              <button id="prev-page" class="btn btn-secondary" disabled>Previous</button>
+              <span id="page-info">Page 1 of 1</span>
+              <button id="next-page" class="btn btn-secondary" disabled>Next</button>
+            </div>
           </div>
           <div id="error" class="error hidden"></div>
         </div>
@@ -202,6 +210,29 @@ if (cookieHeader) {
     color: #666;
   }
 
+  .pagination-info {
+    margin-bottom: 1rem;
+    color: #666;
+    font-size: 0.9rem;
+  }
+
+  .pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+  }
+
+  #page-info {
+    font-weight: 600;
+    color: #333;
+    min-width: 100px;
+    text-align: center;
+  }
+
   @media (max-width: 768px) {
     .admin-container {
       padding: 0 0.5rem;
@@ -218,6 +249,10 @@ if (cookieHeader) {
 </style>
 
 <script>
+  let currentPage = 1;
+  let totalPages = 1;
+  const itemsPerPage = 20;
+
   async function loadSubscriberCount() {
     try {
       const response = await fetch('/api/subscribers?action=count');
@@ -231,9 +266,14 @@ if (cookieHeader) {
     }
   }
 
-  async function loadSubscribers() {
+  async function loadSubscribers(page = 1) {
     try {
-      const response = await fetch('/api/subscribers?action=list');
+      // Show loading state
+      document.getElementById('loading')!.classList.remove('hidden');
+      document.getElementById('subscribers-list')!.classList.add('hidden');
+      document.getElementById('error')!.classList.add('hidden');
+
+      const response = await fetch(`/api/subscribers?action=list&page=${page}&limit=${itemsPerPage}`);
       const data = await response.json();
       
       if (data.success) {
@@ -248,13 +288,18 @@ if (cookieHeader) {
             <td><span class="status-${subscriber.status}">${subscriber.status}</span></td>
             <td>
               ${subscriber.status === 'active' ? 
-                `<button class="btn btn-danger" onclick="unsubscribeUser('${subscriber.email.replace(/\*+/, '')}')">Unsubscribe</button>` : 
+                `<button class="btn btn-danger" onclick="unsubscribeUser('${subscriber.email}')">Unsubscribe</button>` : 
                 '-'
               }
             </td>
           `;
           tbody.appendChild(row);
         });
+        
+        // Update pagination info
+        currentPage = data.pagination.currentPage;
+        totalPages = data.pagination.totalPages;
+        updatePaginationControls(data.pagination);
         
         document.getElementById('loading')!.classList.add('hidden');
         document.getElementById('subscribers-list')!.classList.remove('hidden');
@@ -266,6 +311,31 @@ if (cookieHeader) {
       document.getElementById('loading')!.classList.add('hidden');
       document.getElementById('error')!.textContent = 'Failed to load subscribers';
       document.getElementById('error')!.classList.remove('hidden');
+    }
+  }
+
+  function updatePaginationControls(pagination: any) {
+    const prevBtn = document.getElementById('prev-page') as HTMLButtonElement;
+    const nextBtn = document.getElementById('next-page') as HTMLButtonElement;
+    const pageInfo = document.getElementById('page-info')!;
+    const paginationInfoText = document.getElementById('pagination-info-text')!;
+    
+    // Update button states
+    prevBtn.disabled = !pagination.hasPrevious;
+    nextBtn.disabled = !pagination.hasNext;
+    
+    // Update page info
+    pageInfo.textContent = `Page ${pagination.currentPage} of ${pagination.totalPages}`;
+    
+    // Update pagination info text
+    const startItem = ((pagination.currentPage - 1) * pagination.limit) + 1;
+    const endItem = Math.min(pagination.currentPage * pagination.limit, pagination.totalCount);
+    paginationInfoText.textContent = `Showing ${startItem}-${endItem} of ${pagination.totalCount} subscribers`;
+  }
+
+  function goToPage(page: number) {
+    if (page >= 1 && page <= totalPages) {
+      loadSubscribers(page);
     }
   }
 
@@ -329,6 +399,22 @@ if (cookieHeader) {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', logout);
+    }
+    
+    // Add pagination button event listeners
+    const prevBtn = document.getElementById('prev-page');
+    const nextBtn = document.getElementById('next-page');
+    
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        goToPage(currentPage - 1);
+      });
+    }
+    
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        goToPage(currentPage + 1);
+      });
     }
     
     // Only load data if authenticated (admin panel is visible)

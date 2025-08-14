@@ -47,24 +47,46 @@ export const GET: APIRoute = async ({ request, locals, url }) => {
         });
 
       case 'list':
-        // List recent subscribers (limited for security)
-        const keys = await kv.list({ prefix: 'subscriber:', limit: 50 });
-        const subscribers = await Promise.all(
-          keys.keys.map(async (key) => {
+        // Get pagination parameters
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = (page - 1) * limit;
+
+        // Get all subscriber keys first
+        const allKeys = await kv.list({ prefix: 'subscriber:' });
+        const totalCount = allKeys.keys.length;
+        const totalPages = Math.ceil(totalCount / limit);
+
+        // Get all subscribers and sort by date
+        const allSubscribers = await Promise.all(
+          allKeys.keys.map(async (key) => {
             const subscriber = await kv.get(key.name, 'json') as Subscriber;
             return {
-              email: subscriber.email.replace(/(.{2}).*(@.*)/, '$1***$2'), // Mask email for privacy
+              email: subscriber.email, // Show full email for admin
               subscribedAt: subscriber.subscribedAt,
               status: subscriber.status
             };
           })
         );
 
+        // Sort by subscription date (newest first) and apply pagination
+        const sortedSubscribers = allSubscribers.sort((a, b) => 
+          new Date(b.subscribedAt).getTime() - new Date(a.subscribedAt).getTime()
+        );
+        
+        const paginatedSubscribers = sortedSubscribers.slice(offset, offset + limit);
+
         return new Response(JSON.stringify({
           success: true,
-          subscribers: subscribers.sort((a, b) => 
-            new Date(b.subscribedAt).getTime() - new Date(a.subscribedAt).getTime()
-          )
+          subscribers: paginatedSubscribers,
+          pagination: {
+            currentPage: page,
+            totalPages: totalPages,
+            totalCount: totalCount,
+            limit: limit,
+            hasNext: page < totalPages,
+            hasPrevious: page > 1
+          }
         }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' }
