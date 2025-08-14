@@ -30,7 +30,10 @@ export const GET: APIRoute = async ({ request, locals, url }) => {
     }
 
     await confirmSubscriber(kv, targetSubscriber, targetEmail);
-    await sendWelcomeEmailSafely(locals.runtime.env, targetEmail);
+    
+    // Get the updated subscriber with unsubscribe token
+    const updatedSubscriber = await kv.get(`subscriber:${targetEmail}`, "json");
+    await sendWelcomeEmailSafely(locals.runtime.env, targetEmail, updatedSubscriber?.unsubscribeToken);
 
     console.log("Subscription confirmed:", targetEmail);
     return createSuccessResponse(

@@ -103,6 +103,11 @@ export async function confirmSubscriber(
   subscriber.confirmedAt = new Date().toISOString();
   delete subscriber.confirmationToken;
   delete subscriber.tokenExpiresAt;
+  
+  // Ensure unsubscribe token exists for confirmed subscribers
+  if (!subscriber.unsubscribeToken) {
+    subscriber.unsubscribeToken = generateUnsubscribeToken();
+  }
 
   await kv.put(`subscriber:${email}`, JSON.stringify(subscriber));
 
@@ -112,11 +117,12 @@ export async function confirmSubscriber(
 
 export async function sendWelcomeEmailSafely(
   env: any,
-  email: string
+  email: string,
+  unsubscribeToken?: string
 ): Promise<void> {
   try {
     const emailService = new EmailService(env);
-    const result = await emailService.sendWelcomeEmail(email);
+    const result = await emailService.sendWelcomeEmail(email, unsubscribeToken);
 
     if (!result.success) {
       console.error(
@@ -189,12 +195,17 @@ export async function resendConfirmationEmail(
   );
 }
 
+export function generateUnsubscribeToken(): string {
+  return generateConfirmationToken();
+}
+
 export async function createAndStoreNewSubscriber(
   email: string,
   request: Request,
   kv: any
 ): Promise<string> {
   const confirmationToken = generateConfirmationToken();
+  const unsubscribeToken = generateUnsubscribeToken();
   const tokenExpiresAt = getTokenExpirationDate();
 
   const subscriber: Subscriber = {
@@ -203,6 +214,7 @@ export async function createAndStoreNewSubscriber(
     status: "pending",
     confirmationToken,
     tokenExpiresAt,
+    unsubscribeToken,
     userAgent: request.headers.get("user-agent") || undefined,
     ip: request.headers.get("cf-connecting-ip") || undefined,
   };

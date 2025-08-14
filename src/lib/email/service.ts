@@ -79,10 +79,15 @@ export class EmailService {
     });
   }
 
-  async sendWelcomeEmail(email: string): Promise<EmailResult> {
+  async sendWelcomeEmail(email: string, unsubscribeToken?: string): Promise<EmailResult> {
+    const unsubscribeUrl = unsubscribeToken ? 
+      `${this.siteUrl}/unsubscribe?token=${unsubscribeToken}` : 
+      undefined;
+    
     return this.provider.sendWelcomeEmail({
       to: email,
       siteName: this.siteName,
+      unsubscribeUrl,
     });
   }
 

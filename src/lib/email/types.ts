@@ -14,6 +14,7 @@ export interface ConfirmationEmailParams {
 export interface WelcomeEmailParams {
   to: string;
   siteName?: string;
+  unsubscribeUrl?: string;
 }
 
 export interface EmailResult {
@@ -30,6 +31,7 @@ export interface Subscriber {
   confirmationToken?: string;
   tokenExpiresAt?: string;
   confirmedAt?: string;
+  unsubscribeToken?: string;
   userAgent?: string;
   ip?: string;
 }

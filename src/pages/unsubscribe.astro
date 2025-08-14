@@ -1,0 +1,156 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const { searchParams } = Astro.url;
+const token = searchParams.get('token');
+
+let unsubscribeResult: { success: boolean; message: string; email?: string } | null = null;
+let error = null;
+
+if (token) {
+  try {
+    const response = await fetch(`${Astro.url.origin}/api/public/unsubscribe?token=${token}`);
+    unsubscribeResult = await response.json();
+  } catch (err) {
+    error = 'Failed to process unsubscribe request';
+  }
+}
+---
+
+<Layout title="Unsubscribe - Newsletter">
+  <main class="unsubscribe-container">
+    <div class="unsubscribe-card">
+      {token ? (
+        unsubscribeResult ? (
+          unsubscribeResult.success ? (
+            <div class="success-message">
+              <h1>✅ Successfully Unsubscribed</h1>
+              <p>The email address <strong>{unsubscribeResult.email}</strong> has been removed from our newsletter.</p>
+              <p>You will no longer receive emails from us.</p>
+            </div>
+          ) : (
+            <div class="error-message">
+              <h1>❌ Unsubscribe Failed</h1>
+              <p>{unsubscribeResult.message}</p>
+              <p>If you continue to have issues, please contact our support team.</p>
+            </div>
+          )
+        ) : error ? (
+          <div class="error-message">
+            <h1>❌ Error</h1>
+            <p>{error}</p>
+          </div>
+        ) : (
+          <div class="loading-message">
+            <h1>Processing...</h1>
+            <p>Please wait while we process your unsubscribe request.</p>
+          </div>
+        )
+      ) : (
+        <div class="no-token-message">
+          <h1>🔗 Invalid Unsubscribe Link</h1>
+          <p>This unsubscribe link is invalid or incomplete. Please use the unsubscribe link from your email.</p>
+          <p>If you need assistance, please contact our support team.</p>
+        </div>
+      )}
+      
+      <div class="back-link">
+        <a href="/" class="btn btn-outline">← Back to Newsletter</a>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .unsubscribe-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .unsubscribe-card {
+    background: white;
+    padding: 3rem;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    max-width: 500px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .success-message h1 {
+    color: #28a745;
+    margin-bottom: 1rem;
+    font-size: 1.8rem;
+  }
+
+  .error-message h1 {
+    color: #dc3545;
+    margin-bottom: 1rem;
+    font-size: 1.8rem;
+  }
+
+  .loading-message h1 {
+    color: #6c757d;
+    margin-bottom: 1rem;
+    font-size: 1.8rem;
+  }
+
+  .no-token-message h1 {
+    color: #fd7e14;
+    margin-bottom: 1rem;
+    font-size: 1.8rem;
+  }
+
+  .unsubscribe-card p {
+    margin-bottom: 1rem;
+    line-height: 1.6;
+    color: #555;
+  }
+
+  .btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .btn-outline {
+    background-color: transparent;
+    border: 2px solid #667eea;
+    color: #667eea;
+  }
+
+  .btn-outline:hover {
+    background-color: #667eea;
+    color: white;
+  }
+
+  .back-link {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid #eee;
+  }
+
+  @media (max-width: 600px) {
+    .unsubscribe-container {
+      padding: 1rem;
+    }
+    
+    .unsubscribe-card {
+      padding: 2rem;
+    }
+    
+    .unsubscribe-card h1 {
+      font-size: 1.5rem;
+    }
+  }
+</style>
+

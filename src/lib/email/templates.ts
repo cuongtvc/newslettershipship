@@ -66,6 +66,11 @@ export function buildWelcomeTemplate(params: WelcomeEmailParams): string {
         <p style="color: #666; font-size: 14px; margin: 0;">
           Thanks for joining us! We're excited to share great content with you.
         </p>
+        ${params.unsubscribeUrl ? `
+        <p style="color: #999; font-size: 12px; margin-top: 20px; text-align: center;">
+          You can <a href="${params.unsubscribeUrl}" style="color: #999;">unsubscribe</a> at any time.
+        </p>
+        ` : ''}
       </div>
     </body>
     </html>
